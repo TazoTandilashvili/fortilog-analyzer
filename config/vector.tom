@@ -1,0 +1,82 @@
+# Optimized Vector configuration for high-throughput FortiGate syslog processing
+
+[sources.fgt_syslog_udp]
+type = "socket"
+address = "0.0.0.0:514"
+mode = "udp"
+max_length = 65536              # Max UDP packet size (64KB)
+receive_buffer_bytes = 134217728 # 128MB receive buffer
+
+[transforms.kv_parse]
+type = "remap"
+inputs = ["fgt_syslog_udp"]
+source = '''
+. = parse_key_value!(.message,
+    key_value_delimiter: "=",
+    field_delimiter: " ",
+    whitespace: "lenient"
+)
+
+# Timestamp parsing
+if exists(.date) && exists(.time) {
+    value, err = (.date + " " + .time)
+    if err == null {
+        .ts, err = parse_timestamp(value, "%Y-%m-%d %H:%M:%S")
+        if err != null { .ts = now() }
+    } else { .ts = now() }
+} else { .ts = now() }
+
+# IPs as strings
+.srcip_str = to_string!(.srcip)
+.dstip_str = to_string!(.dstip)
+
+# Numeric conversions
+.policyid = to_int(.policyid) ?? 0
+.proto = to_int(.proto) ?? 0
+.srcport = to_int(.srcport) ?? 0
+.dstport = to_int(.dstport) ?? 0
+.sessionid = to_int(.sessionid) ?? 0
+.duration = to_int(.duration) ?? 0
+.sentbyte = to_int(.sentbyte) ?? 0
+.rcvdbyte = to_int(.rcvdbyte) ?? 0
+.sentpkt = to_int(.sentpkt) ?? 0
+.rcvdpkt = to_int(.rcvdpkt) ?? 0
+
+.vector_processed_at = now()
+'''
+
+[sinks.clickhouse]
+type = "clickhouse"
+inputs = ["kv_parse"]
+endpoint = "127.0.0.1:8123"
+database = "netlogs"
+table = "fgt_traffic_buffer"
+compression = "gzip"
+
+auth.strategy = "basic"
+auth.user = "default"
+auth.password = "test123" # <<< WARNING: Change this in production
+
+batch.max_events = 300000
+batch.timeout_secs = 5
+batch.max_bytes = 104857600  # 100MB
+
+[sinks.clickhouse.buffer]
+type = "memory"
+max_events = 30000000
+when_full = "block"
+
+[sinks.clickhouse.request]
+timeout_secs = 10
+retry_attempts = 3
+retry_max_duration_secs = 30
+
+[sinks.clickhouse.encoding]
+timestamp_format = "unix"
+
+# Optional: File sink for raw log backup
+#[sinks.raw_backup]
+#type = "file"
+#inputs = ["fgt_syslog_udp"]
+#path = "/var/log/vector/raw_fortigate_logs/%Y-%m-%d/%s.log"
+#encoding.codec = "text"
