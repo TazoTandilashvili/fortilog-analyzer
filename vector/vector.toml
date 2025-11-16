@@ -1,0 +1,192 @@
+# FortiGate Syslog to ClickHouse Configuration
+# Optimized for high-throughput log processing
+
+[sources.fgt_syslog]
+type = "socket"
+address = "0.0.0.0:514"
+mode = "udp"
+max_length = 65536
+receive_buffer_bytes = 134217728  # 128MB
+
+# Parse syslog format
+[transforms.parse_syslog]
+type = "remap"
+inputs = ["fgt_syslog"]
+source = '''
+# Parse syslog header
+parsed_syslog = parse_syslog!(.message)
+. = merge(., parsed_syslog)
+
+# Store original message
+.original_message = .message
+'''
+
+# Parse FortiGate key-value pairs
+[transforms.parse_fortigate]
+type = "remap"
+inputs = ["parse_syslog"]
+source = '''
+# Parse key-value pairs from FortiGate message
+. = parse_key_value!(.message,
+    key_value_delimiter: "=",
+    field_delimiter: " ",
+    whitespace: "lenient"
+)
+
+# Handle timestamp - FortiGate format: date=2023-11-16 time=15:30:00
+if exists(.date) && exists(.time) {
+    datetime_string = .date + " " + .time
+    .ts = parse_timestamp(datetime_string, "%Y-%m-%d %H:%M:%S") ?? now()
+} else {
+    .ts = now()
+}
+
+# Set log type based on FortiGate fields
+if exists(.type) {
+    .log_type = .type
+} else if exists(.subtype) {
+    .log_type = .subtype
+} else {
+    .log_type = "unknown"
+}
+'''
+
+# Route logs to appropriate transforms
+[transforms.route_logs]
+type = "route"
+inputs = ["parse_fortigate"]
+route.traffic = '.log_type == "traffic"'
+route.system = '.log_type != "traffic"'
+
+# Process traffic logs
+[transforms.process_traffic]
+type = "remap"
+inputs = ["route_logs.traffic"]
+source = '''
+# Ensure required fields exist with defaults
+.devid = to_string(.devid) ?? "unknown"
+.vd = to_string(.vd) ?? "root"
+.logid = to_string(.logid) ?? "0"
+.level = to_string(.level) ?? "information"
+.subtype = to_string(.subtype) ?? "traffic"
+.action = to_string(.action) ?? "unknown"
+.service = to_string(.service) ?? "unknown"
+.app = to_string(.app) ?? "unknown"
+.user = to_string(.user) ?? "unknown"
+.dstcountry = to_string(.dstcountry) ?? "unknown"
+.srccountry = to_string(.srccountry) ?? "unknown"
+.msg = to_string(.msg) ?? ""
+
+# Handle IP addresses - ensure they're not empty
+.srcip = is_string(.srcip) && .srcip != "" ? .srcip : "0.0.0.0"
+.dstip = is_string(.dstip) && .dstip != "" ? .dstip : "0.0.0.0"
+
+# Convert numeric fields with safe defaults
+.policyid = to_int(.policyid) ?? 0
+.proto = to_int(.proto) ?? 0
+.srcport = to_int(.srcport) ?? 0
+.dstport = to_int(.dstport) ?? 0
+.sessionid = to_int(.sessionid) ?? 0
+.duration = to_int(.duration) ?? 0
+.sentbyte = to_int(.sentbyte) ?? 0
+.rcvdbyte = to_int(.rcvdbyte) ?? 0
+.sentpkt = to_int(.sentpkt) ?? 0
+.rcvdpkt = to_int(.rcvdpkt) ?? 0
+
+# Add processing metadata
+.vector_processed_at = now()
+.vector_host = hostname()
+'''
+
+# Process system logs
+[transforms.process_system]
+type = "remap"
+inputs = ["route_logs.system"]
+source = '''
+# Ensure required fields exist with defaults
+.devid = to_string(.devid) ?? "unknown"
+.vd = to_string(.vd) ?? "root"
+.logid = to_string(.logid) ?? "0"
+.level = to_string(.level) ?? "information"
+.subtype = to_string(.subtype) ?? "system"
+.action = to_string(.action) ?? "unknown"
+.msg = to_string(.msg) ?? to_string(.original_message) ?? ""
+.user = to_string(.user) ?? "unknown"
+.srcip = is_string(.srcip) && .srcip != "" ? .srcip : "0.0.0.0"
+
+# Add processing metadata
+.vector_processed_at = now()
+.vector_host = hostname()
+'''
+
+# ClickHouse sink for traffic logs
+[sinks.clickhouse_traffic]
+type = "clickhouse"
+inputs = ["process_traffic"]
+endpoint = "<http://127.0.0.1:8123>"
+database = "netlogs"
+table = "fgt_traffic_buffer"
+compression = "gzip"
+
+# Authentication
+auth.strategy = "basic"
+auth.user = "default"
+auth.password = "CLICKHOUSE_PASSWORD_PLACEHOLDER"
+
+# Batching settings
+batch.max_events = 10000
+batch.timeout_secs = 5
+batch.max_bytes = 104857600  # 100MB
+
+# Buffer settings
+[sinks.clickhouse_traffic.buffer]
+type = "memory"
+max_events = 100000
+when_full = "drop_newest"
+
+# Request settings
+[sinks.clickhouse_traffic.request]
+timeout_secs = 30
+retry_attempts = 5
+retry_max_duration_secs = 300
+
+[sinks.clickhouse_traffic.encoding]
+timestamp_format = "unix"
+
+# ClickHouse sink for system logs
+[sinks.clickhouse_system]
+type = "clickhouse"
+inputs = ["process_system"]
+endpoint = "<http://127.0.0.1:8123>"
+database = "netlogs"
+table = "fgt_system_buffer"
+compression = "gzip"
+
+# Authentication
+auth.strategy = "basic"
+auth.user = "default"
+auth.password = "CLICKHOUSE_PASSWORD_PLACEHOLDER"
+
+# Batching settings
+batch.max_events = 5000
+batch.timeout_secs = 10
+
+# Buffer settings
+[sinks.clickhouse_system.buffer]
+type = "memory"
+max_events = 50000
+when_full = "drop_newest"
+
+[sinks.clickhouse_system.encoding]
+timestamp_format = "unix"
+
+# Optional: File sink for debugging (disabled by default)
+# [sinks.debug_file]
+# type = "file"
+# inputs = ["parse_fortigate"]
+# path = "/var/log/vector/fortigate-debug-%Y-%m-%d.log"
+# encoding.codec = "json"
+#
+# [sinks.debug_file.buffer]
+# type = "memory"
+# max_events = 1000
