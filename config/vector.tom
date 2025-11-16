@@ -4,8 +4,8 @@
 type = "socket"
 address = "0.0.0.0:514"
 mode = "udp"
-max_length = 65536              # Max UDP packet size (64KB)
-receive_buffer_bytes = 134217728 # 128MB receive buffer
+max_length = 65536
+receive_buffer_bytes = 134217728
 
 [transforms.kv_parse]
 type = "remap"
@@ -16,8 +16,7 @@ source = '''
     field_delimiter: " ",
     whitespace: "lenient"
 )
-
-# Timestamp parsing
+# ... (rest of the parsing logic is unchanged) ...
 if exists(.date) && exists(.time) {
     value, err = (.date + " " + .time)
     if err == null {
@@ -25,12 +24,8 @@ if exists(.date) && exists(.time) {
         if err != null { .ts = now() }
     } else { .ts = now() }
 } else { .ts = now() }
-
-# IPs as strings
 .srcip_str = to_string!(.srcip)
 .dstip_str = to_string!(.dstip)
-
-# Numeric conversions
 .policyid = to_int(.policyid) ?? 0
 .proto = to_int(.proto) ?? 0
 .srcport = to_int(.srcport) ?? 0
@@ -41,7 +36,6 @@ if exists(.date) && exists(.time) {
 .rcvdbyte = to_int(.rcvdbyte) ?? 0
 .sentpkt = to_int(.sentpkt) ?? 0
 .rcvdpkt = to_int(.rcvdpkt) ?? 0
-
 .vector_processed_at = now()
 '''
 
@@ -54,12 +48,13 @@ table = "fgt_traffic_buffer"
 compression = "gzip"
 
 auth.strategy = "basic"
-auth.user = "default"
-auth.password = "test123" # <<< WARNING: Change this in production
+# Use environment variables for credentials
+auth.user = "${CLICKHOUSE_USER}"
+auth.password = "${CLICKHOUSE_PASSWORD}"
 
 batch.max_events = 300000
 batch.timeout_secs = 5
-batch.max_bytes = 104857600  # 100MB
+batch.max_bytes = 104857600
 
 [sinks.clickhouse.buffer]
 type = "memory"
@@ -73,10 +68,3 @@ retry_max_duration_secs = 30
 
 [sinks.clickhouse.encoding]
 timestamp_format = "unix"
-
-# Optional: File sink for raw log backup
-#[sinks.raw_backup]
-#type = "file"
-#inputs = ["fgt_syslog_udp"]
-#path = "/var/log/vector/raw_fortigate_logs/%Y-%m-%d/%s.log"
-#encoding.codec = "text"
