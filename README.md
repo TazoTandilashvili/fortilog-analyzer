@@ -46,7 +46,7 @@ A high-performance, production-ready log analysis and security monitoring soluti
                                    │ (HTTP API Port 8123)
                                    ▼
                         ┌──────────────────────┐
-                        │   ClickHouse        │
+                        │   ClickHouse         │
                         │  ┌────────────────┐  │
                         │  │ Buffer Table   │  │  Temporary Buffer
                         │  └────────┬───────┘  │
@@ -61,7 +61,7 @@ A high-performance, production-ready log analysis and security monitoring soluti
                                    │ (SQL Queries)
                                    ▼
                         ┌──────────────────────┐
-                        │   Grafana           │
+                        │   Grafana            │
                         │  ┌────────────────┐  │
                         │  │ Dashboards     │  │  Port 3000
                         │  │ Visualizations │  │  Security Analytics
