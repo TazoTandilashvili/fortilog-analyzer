@@ -121,55 +121,6 @@ fi
 # Create database and tables if sql/setup.sql exists
 if [ -f ./sql/setup.sql ]; then
     echo "Creating database and tables from sql/setup.sql..."
-    if clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery < ./sql/setup.sql 2>&1 | grep -q "TABLE_ALREADY_EXISTS"; then
-        echo "⚠️  Tables already exist, skipping creation."
-    else
-        echo "✅ Database and tables created."
-    fi
+    clickhouse-client --user "$CLICKHOUSE_USER" --password "$CLICKHOUSE_PASSWORD" --multiquery < ./sql/setup.sql
+    echo "✅ Database and tables created."
 fi
-
-# ==================================
-# 4. INSTALL VECTOR
-# ==================================
-echo "Installing Vector..."
-bash -c "$(curl -L https://setup.vector.dev)"
-sudo apt-get install -y vector
-echo "Vector installed."
-
-# ==================================
-# 5. CONFIGURE VECTOR
-# ==================================
-echo "Configuring Vector..."
-
-
-# Copy environment file to a location the service can read
-sudo cp ./config.env /etc/vector/fortilog.env
-sudo chmod 640 /etc/vector/fortilog.env
-sudo chown root:vector /etc/vector/fortilog.env
-
-# Copy configs from the project directory
-sudo cp ./config/vector.toml /etc/vector/vector.toml
-sudo cp ./config/vector.service /lib/systemd/system/vector.service
-
-sudo systemctl daemon-reload
-sudo systemctl enable vector.service
-sudo systemctl start vector.service
-echo "Vector configured and started."
-
-# ==================================
-# COMPLETION
-# ==================================
-echo ""
-echo "✅ All components installed and configured!"
-echo ""
-echo "Installation complete. Here's your setup:"
-echo "------------------------------------------------"
-echo "  ClickHouse:"
-echo "    - User: $CLICKHOUSE_USER"
-echo "    - Pass: (set in /etc/vector/fortilog.env)"
-echo ""
-echo "  Vector:"
-echo "    - Status: sudo systemctl status vector"
-echo "    - Listening on: UDP 0.0.0.0:514"
-echo "------------------------------------------------"
-echo "Next step: Point your FortiGate to this server's IP (UDP 514) and check Grafana."
