@@ -126,8 +126,8 @@ Log into your FortiGate admin panel and configure syslog:
 
 ### Step 4: Access Dashboards
 
-- **Grafana**: `http://<server-ip>:3000` (admin / admin)
-  - ⚠️ **Change password immediately**
+- **Grafana**: `http://<server-ip>:3000`
+
 - Add ClickHouse data source (see [Configure Grafana](#configure-grafana) below)
 
 ## 📥 Detailed Installation Guide
@@ -168,8 +168,6 @@ sudo journalctl -u vector -f
 1. **Access Grafana**
    ```
    Browser: http://<your-server-ip>:3000
-   Login: admin / admin
-   Change password when prompted
    ```
 
 2. **Add ClickHouse Data Source**
@@ -181,22 +179,124 @@ sudo journalctl -u vector -f
      - Password: `changeme123!` (or your password)
    - Click "Save & test"
 
-3. **Build Your First Dashboard**
+3. **Import Pre-built Dashboard (Recommended)**
+
+   **Quick Import (Easiest)**
+   - Go to: **Dashboards** → **Import**
+   - Upload the file: `dashboards/fortilog-analytics.json`
+   - The data source will auto-configure for your environment
+   - Click **Import**
+   - Dashboard will load with traffic visualization
+
+   **Alternative: Manual Build**
    - Dashboards → New → Create dashboard
    - Add panel → ClickHouse data source
+   - Use example queries below
 
-   **Example Query (Top Source IPs by Traffic):**
-   ```sql
-   SELECT
-       srcip,
-       COUNT() as events,
-       SUM(sentbyte + rcvdbyte) as total_bytes
-   FROM fgt_traffic
-   WHERE $__timeFilter(ts)
-   GROUP BY srcip
-   ORDER BY total_bytes DESC
-   LIMIT 20
-   ```
+### Pre-built Dashboard Features
+
+The included **`dashboards/fortilog-analytics.json`** provides:
+
+**Main Panel: Traffic Table**
+- Full FortiGate traffic log visualization
+- Columns: Source IP, Source Port, Destination IP, Destination Port, Service, Action, Protocol, Policy ID, Virtual Domain, Log Level, Log Subtype, Timestamp
+- Sortable columns (click column headers)
+- Pagination support (1000 rows per page)
+- Real-time updates
+
+**Filter Variables:**
+- **Source IP** - Multi-select dropdown (populated from last 24 hours)
+  - Shows top 500 unique source IPs
+  - Select "All" or specific IPs to filter traffic
+
+- **Destination IP** - Multi-select dropdown (populated from last 24 hours)
+  - Shows top 500 unique destination IPs
+  - Select "All" or specific IPs to filter traffic
+
+**Time Range:**
+- Default: Last 5 minutes (real-time monitoring)
+- Customizable: Use dashboard time picker (top right)
+- Supports: 5m, 1h, 24h, 7d, 30d, custom ranges
+
+**Features:**
+- ✅ Dynamic IP filtering (auto-populated from data)
+- ✅ Real-time log streaming
+- ✅ Sortable columns for analysis
+- ✅ Time range filtering
+- ✅ Multi-select IP filtering
+- ✅ Dark theme for 24/7 SOC operations
+- ✅ IPv4 conversion from binary format
+
+### Using the Dashboard
+
+1. **Monitor Live Traffic**
+   - Set time range to "Last 5 minutes"
+   - Watch traffic in real-time as FortiGate sends logs
+
+2. **Filter by Source IP**
+   - Click "Source IP" dropdown at top
+   - Select specific IPs or leave as "All"
+   - Table updates automatically
+
+3. **Filter by Destination IP**
+   - Click "Destination IP" dropdown at top
+   - Select specific IPs or leave as "All"
+   - Combine with source IP for detailed filtering
+
+4. **Investigate Security Events**
+   - Look for Action = "Deny" entries
+   - Analyze denied connections by IP pair
+   - Check policy IDs and protocols involved
+
+5. **Export Data**
+   - Click download icon in table footer
+   - Export to CSV for further analysis
+
+### Example Queries for Custom Panels
+
+If you want to add more panels to the dashboard:
+
+**Top Source IPs by Traffic:**
+```sql
+SELECT
+    IPv4NumToString(srcip_v4) as source_ip,
+    COUNT() as events,
+    SUM(sentbyte + rcvdbyte) as total_bytes
+FROM netlogs.fgt_traffic
+WHERE $__timeFilter(ts)
+GROUP BY srcip_v4
+ORDER BY total_bytes DESC
+LIMIT 20
+```
+
+**Top Denied Connections:**
+```sql
+SELECT
+    IPv4NumToString(srcip_v4) as src_ip,
+    IPv4NumToString(dstip_v4) as dst_ip,
+    COUNT() as blocks,
+    proto,
+    policyid
+FROM netlogs.fgt_traffic
+WHERE action = 'Deny' AND $__timeFilter(ts)
+GROUP BY srcip_v4, dstip_v4, proto, policyid
+ORDER BY blocks DESC
+LIMIT 20
+```
+
+**Bandwidth Usage by Hour:**
+```sql
+SELECT
+    toStartOfHour(ts) as hour,
+    COUNT() as events,
+    SUM(sentbyte) / 1024 / 1024 / 1024 as sent_gb,
+    SUM(rcvdbyte) / 1024 / 1024 / 1024 as received_gb
+FROM netlogs.fgt_traffic
+WHERE $__timeFilter(ts)
+GROUP BY hour
+ORDER BY hour DESC
+LIMIT 24
+```
 
 ## 🗄️ Database Schema
 
@@ -507,6 +607,41 @@ curl -u default:changeme123! "http://localhost:8123/" -d "SELECT 1"
 | `config/vector.service` | Systemd service | User, restart policy, capabilities |
 | `sql/setup.sql` | Database schema | Table creation, columns, indexes |
 | `install.sh` | Automated setup | Installation steps, service enablement |
+| `dashboards/fortilog-analytics.json` | Grafana dashboard | Pre-built analytics panels with queries |
+
+### Grafana Dashboards
+
+The `dashboards/` directory contains pre-built Grafana dashboard JSON files that can be imported directly:
+
+**FortiLog Analytics Dashboard** (`fortilog-analytics.json`)
+- **Real-time Traffic Monitoring Table** with 1000 rows per page
+- **Columns**: Source IP, Source Port, Destination IP, Destination Port, Service, Action, Protocol, Policy ID, VD, Level, Subtype, Timestamp
+- **Dynamic IP Filters**: Multi-select dropdowns for Source and Destination IPs (auto-populated from last 24 hours)
+- **Time Range Control**: Default 5-minute view, customizable from top-right picker
+- **Sortable Columns**: Click any column header to sort data
+- **Dark Theme**: Optimized for 24/7 SOC monitoring and eye strain reduction
+
+**How to Import:**
+1. Navigate to Grafana → Dashboards → Import
+2. Upload `dashboards/fortilog-analytics.json`
+3. The data source will auto-detect your ClickHouse environment
+4. Click Import
+5. Start monitoring FortiGate traffic immediately
+
+**What You Get:**
+- ✅ Live traffic streaming from FortiGate
+- ✅ Filter by Source IP (top 500 from last 24h)
+- ✅ Filter by Destination IP (top 500 from last 24h)
+- ✅ Real-time action monitoring (Allow/Deny/Block)
+- ✅ Protocol and service identification
+- ✅ Policy ID tracking for security analysis
+- ✅ Timestamp for forensics and incident response
+
+**Customization:**
+- Edit dashboard panels in Grafana UI for quick changes
+- Add new panels using the example queries in [Example Queries](#example-queries-for-custom-panels) section
+- Export modified dashboard as JSON
+- Version control dashboard JSON in `dashboards/` directory
 
 ## 📞 Support & Resources
 

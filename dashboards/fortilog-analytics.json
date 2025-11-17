@@ -1,0 +1,378 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 127,
+  "links": [],
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-clickhouse-datasource",
+        "uid": "bf4akun9ulreoe"
+      },
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "thresholds"
+          },
+          "custom": {
+            "align": "auto",
+            "cellOptions": {
+              "type": "auto"
+            },
+            "inspect": false
+          },
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              },
+              {
+                "color": "red",
+                "value": 80
+              }
+            ]
+          }
+        },
+        "overrides": [
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "devid"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 193
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "time"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 115
+              }
+            ]
+          },
+          {
+            "matcher": {
+              "id": "byName",
+              "options": "policyid"
+            },
+            "properties": [
+              {
+                "id": "custom.width",
+                "value": 0
+              }
+            ]
+          }
+        ]
+      },
+      "gridPos": {
+        "h": 20,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 2,
+      "options": {
+        "cellHeight": "sm",
+        "footer": {
+          "countRows": false,
+          "enablePagination": true,
+          "fields": "",
+          "reducer": [
+            "sum"
+          ],
+          "show": false
+        },
+        "showHeader": true,
+        "sortBy": []
+      },
+      "pluginVersion": "11.6.1",
+      "targets": [
+        {
+          "builderOptions": {
+            "aggregates": [],
+            "columns": [
+              {
+                "alias": "src_ip",
+                "name": "srcip_str"
+              },
+              {
+                "alias": "src_port",
+                "name": "srcport"
+              },
+              {
+                "alias": "dst_ip",
+                "name": "dstip_str"
+              },
+              {
+                "alias": "dst_port",
+                "name": "dstport"
+              },
+              {
+                "name": "msg"
+              },
+              {
+                "name": "service"
+              },
+              {
+                "name": "action"
+              },
+              {
+                "name": "proto"
+              },
+              {
+                "name": "policyid"
+              },
+              {
+                "name": "vd"
+              },
+              {
+                "name": "level"
+              },
+              {
+                "name": "subtype"
+              },
+              {
+                "alias": "time",
+                "name": "ts"
+              }
+            ],
+            "database": "netlogs",
+            "filters": [
+              {
+                "key": "ts",
+                "operator": "WITH IN DASHBOARD TIME RANGE",
+                "type": "datetime"
+              },
+              {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "srcip_str",
+                "label": "srcip_str",
+                "operator": "!=",
+                "type": "String",
+                "value": "'^(${srcIP:regex})$'"
+              },
+              {
+                "condition": "AND",
+                "filterType": "custom",
+                "key": "dstip_str",
+                "label": "dstip_str",
+                "operator": "!=",
+                "type": "String",
+                "value": "'^(${dstIP:regex})$'"
+              }
+            ],
+            "groupBy": [],
+            "limit": 1000,
+            "meta": {},
+            "mode": "list",
+            "orderBy": [
+              {
+                "dir": "DESC",
+                "name": "ts"
+              }
+            ],
+            "queryType": "table",
+            "table": "fgt_traffic"
+          },
+          "datasource": {
+            "type": "grafana-clickhouse-datasource",
+            "uid": "bf4akun9ulreoe"
+          },
+          "editorType": "sql",
+          "format": 1,
+          "hide": false,
+          "meta": {
+            "builderOptions": {
+              "aggregates": [],
+              "columns": [
+                {
+                  "alias": "src_ip",
+                  "name": "srcip_str"
+                },
+                {
+                  "alias": "src_port",
+                  "name": "srcport"
+                },
+                {
+                  "alias": "dst_ip",
+                  "name": "dstip_str"
+                },
+                {
+                  "alias": "dst_port",
+                  "name": "dstport"
+                },
+                {
+                  "name": "msg"
+                },
+                {
+                  "name": "service"
+                },
+                {
+                  "name": "action"
+                },
+                {
+                  "name": "proto"
+                },
+                {
+                  "name": "policyid"
+                },
+                {
+                  "name": "vd"
+                },
+                {
+                  "name": "level"
+                },
+                {
+                  "name": "subtype"
+                },
+                {
+                  "alias": "time",
+                  "name": "ts"
+                }
+              ],
+              "database": "netlogs",
+              "filters": [
+                {
+                  "key": "ts",
+                  "operator": "WITH IN DASHBOARD TIME RANGE",
+                  "type": "datetime"
+                },
+                {
+                  "condition": "AND",
+                  "filterType": "custom",
+                  "key": "srcip_str",
+                  "label": "srcip_str",
+                  "operator": "!=",
+                  "type": "String",
+                  "value": "'^(${srcIP:regex})$'"
+                },
+                {
+                  "condition": "AND",
+                  "filterType": "custom",
+                  "key": "dstip_str",
+                  "label": "dstip_str",
+                  "operator": "!=",
+                  "type": "String",
+                  "value": "'^(${dstIP:regex})$'"
+                }
+              ],
+              "groupBy": [],
+              "limit": 1000,
+              "meta": {},
+              "mode": "list",
+              "orderBy": [
+                {
+                  "dir": "DESC",
+                  "name": "ts"
+                }
+              ],
+              "queryType": "table",
+              "table": "fgt_traffic"
+            }
+          },
+          "pluginVersion": "4.10.2",
+          "queryType": "table",
+          "rawSql": "SELECT\r\n  IPv4NumToString(srcip_v4) AS src_ip,\r\n  srcport AS src_port,\r\n  IPv4NumToString(dstip_v4) AS dst_ip,\r\n  dstport AS dst_port,\r\n  msg, service, action, proto, policyid, vd,\r\n  level, subtype,\r\n  ts AS time\r\nFROM netlogs.fgt_traffic\r\nWHERE $__timeFilter(ts)\r\n  AND (${srcIP:singlequote} = '' OR IPv4NumToString(srcip_v4) = ${srcIP:singlequote})\r\n  AND (${dstIP:singlequote} = '' OR IPv4NumToString(dstip_v4) = ${dstIP:singlequote})\r\nORDER BY ts DESC;\r\n",
+          "refId": "B"
+        }
+      ],
+      "title": "Traffic ",
+      "type": "table"
+    }
+  ],
+  "preload": false,
+  "schemaVersion": 41,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "bf4akun9ulreoe"
+        },
+        "definition": "SELECT DISTINCT IPv4NumToString(srcip_v4)\nFROM netlogs.fgt_traffic\nWHERE ts >= now() - INTERVAL 24 HOUR\nORDER BY IPv4NumToString(srcip_v4)\nLIMIT 500;\n",
+        "includeAll": true,
+        "label": "Source IP",
+        "multi": true,
+        "name": "srcIP",
+        "options": [],
+        "query": "SELECT DISTINCT IPv4NumToString(srcip_v4)\nFROM netlogs.fgt_traffic\nWHERE ts >= now() - INTERVAL 24 HOUR\nORDER BY IPv4NumToString(srcip_v4)\nLIMIT 500;\n",
+        "refresh": 1,
+        "regex": ".*",
+        "sort": 3,
+        "type": "query"
+      },
+      {
+        "allowCustomValue": false,
+        "current": {
+          "text": [
+            "10.4.15.11"
+          ],
+          "value": [
+            "10.4.15.11"
+          ]
+        },
+        "datasource": {
+          "type": "grafana-clickhouse-datasource",
+          "uid": "bf4akun9ulreoe"
+        },
+        "definition": "SELECT DISTINCT IPv4NumToString(dstip_v4)\nFROM netlogs.fgt_traffic\nWHERE ts >= now() - INTERVAL 24 HOUR\nORDER BY IPv4NumToString(dstip_v4)\nLIMIT 500;\n",
+        "includeAll": true,
+        "label": "Destination IP",
+        "multi": true,
+        "name": "dstIP",
+        "options": [],
+        "query": "SELECT DISTINCT IPv4NumToString(dstip_v4)\nFROM netlogs.fgt_traffic\nWHERE ts >= now() - INTERVAL 24 HOUR\nORDER BY IPv4NumToString(dstip_v4)\nLIMIT 500;\n",
+        "refresh": 1,
+        "regex": "/.*/",
+        "type": "query"
+      }
+    ]
+  },
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "browser",
+  "title": "FortiLogtest",
+  "uid": "aey5i5rrkhtkwbasdasd",
+  "version": 7
+}
